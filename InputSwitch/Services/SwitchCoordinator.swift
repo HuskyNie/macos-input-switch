@@ -60,7 +60,7 @@ final class SwitchCoordinator {
         inputSourceManager.switchToInputSource(id: inputSourceID)
     }
 
-    func handleInputSourceDidChange(to inputSource: InputSourceDescriptor) {
+    func handleInputSourceDidChange(to inputSource: InputSourceDescriptor) throws {
         guard !loopGuard.shouldIgnoreInputChange(to: inputSource.id) else {
             return
         }
@@ -79,6 +79,6 @@ final class SwitchCoordinator {
         }
 
         memories[activeApp.matchKey] = inputSource.id
-        try? memoryStore.save(memories)
+        try memoryStore.save(memories)
     }
 }
