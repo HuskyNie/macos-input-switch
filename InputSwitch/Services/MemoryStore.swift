@@ -18,7 +18,7 @@ final class MemoryStore {
         return memory
     }
 
-    func save(_ memory: [String: String]) {
-        try? writer.write(memory, to: fileURL)
+    func save(_ memory: [String: String]) throws {
+        try writer.write(memory, to: fileURL)
     }
 }

@@ -30,7 +30,7 @@ final class SettingsStore {
         return settings
     }
 
-    func save(_ settings: AppSettings) {
-        try? writer.write(settings, to: fileURL)
+    func save(_ settings: AppSettings) throws {
+        try writer.write(settings, to: fileURL)
     }
 }
