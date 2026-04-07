@@ -15,7 +15,14 @@ enum AXFrontmostAppResolver {
         }
 
         var processID: pid_t = 0
-        AXUIElementGetPid(focusedApplication as! AXUIElement, &processID)
-        return processID
+        let pidResult = AXUIElementGetPid(focusedApplication as! AXUIElement, &processID)
+        return validatedProcessID(result: pidResult, pid: processID)
+    }
+
+    static func validatedProcessID(result: AXError, pid: pid_t) -> pid_t? {
+        guard result == .success else {
+            return nil
+        }
+        return pid
     }
 }

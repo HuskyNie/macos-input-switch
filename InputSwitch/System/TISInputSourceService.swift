@@ -57,7 +57,7 @@ final class TISInputSourceService: NSObject, InputSourceManaging {
             return []
         }
 
-        return sourceList as Array as? [TISInputSource] ?? []
+        return (sourceList as Array as? [TISInputSource] ?? []).filter(isSelectableKeyboardInputSource)
     }
 
     private func descriptor(from source: TISInputSource) -> InputSourceDescriptor? {
@@ -73,5 +73,39 @@ final class TISInputSourceService: NSObject, InputSourceManaging {
             ?? sourceID
 
         return InputSourceDescriptor(id: sourceID, displayName: localizedName)
+    }
+
+    static func isSelectableKeyboardInputSource(
+        category: CFString?,
+        isSelectCapable: Bool,
+        isEnabled: Bool
+    ) -> Bool {
+        category == kTISCategoryKeyboardInputSource && isSelectCapable && isEnabled
+    }
+
+    private func isSelectableKeyboardInputSource(_ source: TISInputSource) -> Bool {
+        let category = stringProperty(kTISPropertyInputSourceCategory, from: source)
+        let isSelectCapable = boolProperty(kTISPropertyInputSourceIsSelectCapable, from: source) ?? false
+        let isEnabled = boolProperty(kTISPropertyInputSourceIsEnabled, from: source) ?? false
+        return Self.isSelectableKeyboardInputSource(
+            category: category,
+            isSelectCapable: isSelectCapable,
+            isEnabled: isEnabled
+        )
+    }
+
+    private func stringProperty(_ key: CFString, from source: TISInputSource) -> CFString? {
+        guard let pointer = TISGetInputSourceProperty(source, key) else {
+            return nil
+        }
+        return Unmanaged<CFString>.fromOpaque(pointer).takeUnretainedValue()
+    }
+
+    private func boolProperty(_ key: CFString, from source: TISInputSource) -> Bool? {
+        guard let pointer = TISGetInputSourceProperty(source, key) else {
+            return nil
+        }
+        let value = Unmanaged<CFBoolean>.fromOpaque(pointer).takeUnretainedValue()
+        return CFBooleanGetValue(value)
     }
 }
