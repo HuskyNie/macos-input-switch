@@ -27,5 +27,8 @@ targets:
     deploymentTarget: "13.0"
     sources:
       - path: InputSwitchTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: InputSwitch
