@@ -22,7 +22,13 @@ final class SettingsViewModel: ObservableObject {
         availableInputSources: [InputSourceDescriptor],
         diagnostics: [String]
     ) {
-        defaultInputSourceName = settings.defaultInputSourceID ?? "未设置"
+        if let defaultInputSourceID = settings.defaultInputSourceID {
+            defaultInputSourceName = availableInputSources
+                .first(where: { $0.id == defaultInputSourceID })?
+                .displayName ?? defaultInputSourceID
+        } else {
+            defaultInputSourceName = "未设置"
+        }
         launchAtLoginEnabled = settings.launchAtLoginEnabled
         rules = settings.rules
             .sorted { $0.key < $1.key }
