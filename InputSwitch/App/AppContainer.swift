@@ -70,6 +70,21 @@ final class AppContainer {
                 self?.setLaunchAtLogin(enabled)
             }
         }
+        settingsViewModel.onDefaultInputSourceChange = { [weak self] inputSourceID in
+            Task { @MainActor in
+                self?.setDefaultInputSource(inputSourceID)
+            }
+        }
+        settingsViewModel.onUpsertRule = { [weak self] key, rule in
+            Task { @MainActor in
+                self?.upsertRule(key: key, rule: rule)
+            }
+        }
+        settingsViewModel.onDeleteRule = { [weak self] key in
+            Task { @MainActor in
+                self?.deleteRule(key: key)
+            }
+        }
         inputSourceManager.onChange = { [weak self] inputSource in
             Task { @MainActor in
                 self?.handleInputSourceChange(inputSource)
@@ -181,6 +196,59 @@ final class AppContainer {
         }
     }
 
+    private func setDefaultInputSource(_ inputSourceID: String?) {
+        var updatedSettings = currentSettings
+        updatedSettings.defaultInputSourceID = inputSourceID
+
+        do {
+            try persistSettings(updatedSettings)
+            rebuildCoordinator()
+
+            if let inputSourceID {
+                let displayName = inputSourceManager?.availableInputSources().first(where: { $0.id == inputSourceID })?.displayName ?? inputSourceID
+                log("默认输入法已设置为：\(displayName)")
+            } else {
+                log("已清除默认输入法")
+            }
+        } catch {
+            log("保存默认输入法失败：\(error.localizedDescription)")
+            refreshUI()
+        }
+    }
+
+    private func upsertRule(key: String, rule: AppRule) {
+        var updatedSettings = currentSettings
+        updatedSettings.rules[key] = rule
+
+        do {
+            try persistSettings(updatedSettings)
+            rebuildCoordinator()
+            log("已保存规则：\(key)")
+        } catch {
+            log("保存规则失败：\(error.localizedDescription)")
+            refreshUI()
+        }
+    }
+
+    private func deleteRule(key: String) {
+        guard currentSettings.rules[key] != nil else {
+            log("规则不存在：\(key)")
+            return
+        }
+
+        var updatedSettings = currentSettings
+        updatedSettings.rules.removeValue(forKey: key)
+
+        do {
+            try persistSettings(updatedSettings)
+            rebuildCoordinator()
+            log("已删除规则：\(key)")
+        } catch {
+            log("删除规则失败：\(error.localizedDescription)")
+            refreshUI()
+        }
+    }
+
     private func togglePause() {
         if isPaused {
             pausedUntil = nil
@@ -282,6 +350,7 @@ final class AppContainer {
             model: StatusMenuModel.make(
                 activeAppName: currentActiveApp?.displayName ?? "未检测到",
                 currentInputSourceName: currentInputSource?.displayName ?? "未检测到",
+                currentInputSourceIconURL: currentInputSource?.iconURL,
                 isPaused: isPaused
             )
         )

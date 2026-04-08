@@ -11,7 +11,23 @@ final class StatusBarController: NSObject {
     }
 
     func render(model: StatusMenuModel) {
-        statusItem.button?.title = "⌨︎"
+        if let button = statusItem.button {
+            switch model.icon {
+            case .image(let url):
+                if let image = NSImage(contentsOf: url) {
+                    image.size = NSSize(width: 18, height: 18)
+                    button.image = image
+                    button.imagePosition = .imageOnly
+                    button.title = ""
+                } else {
+                    button.image = nil
+                    button.title = "⌨︎"
+                }
+            case .text(let text):
+                button.image = nil
+                button.title = text
+            }
+        }
 
         let menu = NSMenu()
         for item in model.items {

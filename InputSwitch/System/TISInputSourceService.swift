@@ -72,7 +72,11 @@ final class TISInputSourceService: NSObject, InputSourceManaging {
             .map { Unmanaged<CFString>.fromOpaque($0).takeUnretainedValue() as String }
             ?? sourceID
 
-        return InputSourceDescriptor(id: sourceID, displayName: localizedName)
+        return InputSourceDescriptor(
+            id: sourceID,
+            displayName: localizedName,
+            iconURL: urlProperty(kTISPropertyIconImageURL, from: source)
+        )
     }
 
     static func isSelectableKeyboardInputSource(
@@ -107,5 +111,12 @@ final class TISInputSourceService: NSObject, InputSourceManaging {
         }
         let value = Unmanaged<CFBoolean>.fromOpaque(pointer).takeUnretainedValue()
         return CFBooleanGetValue(value)
+    }
+
+    private func urlProperty(_ key: CFString, from source: TISInputSource) -> URL? {
+        guard let pointer = TISGetInputSourceProperty(source, key) else {
+            return nil
+        }
+        return Unmanaged<CFURL>.fromOpaque(pointer).takeUnretainedValue() as URL
     }
 }

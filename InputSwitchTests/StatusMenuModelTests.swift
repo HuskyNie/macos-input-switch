@@ -2,10 +2,24 @@ import XCTest
 @testable import InputSwitch
 
 final class StatusMenuModelTests: XCTestCase {
+    func test_menu_prefers_current_input_source_icon_when_available() {
+        let iconURL = URL(fileURLWithPath: "/tmp/abc-icon.png")
+
+        let model = StatusMenuModel.make(
+            activeAppName: "iTerm2",
+            currentInputSourceName: "ABC",
+            currentInputSourceIconURL: iconURL,
+            isPaused: false
+        )
+
+        XCTAssertEqual(model.icon, .image(iconURL))
+    }
+
     func test_menu_contains_only_the_confirmed_minimal_actions() {
         let model = StatusMenuModel.make(
             activeAppName: "iTerm2",
             currentInputSourceName: "ABC",
+            currentInputSourceIconURL: nil,
             isPaused: false
         )
 
@@ -21,5 +35,6 @@ final class StatusMenuModelTests: XCTestCase {
                 "退出"
             ]
         )
+        XCTAssertEqual(model.icon, .text("⌨︎"))
     }
 }

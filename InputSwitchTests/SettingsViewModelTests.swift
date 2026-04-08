@@ -3,6 +3,81 @@ import XCTest
 
 @MainActor
 final class SettingsViewModelTests: XCTestCase {
+    func test_set_default_input_source_updates_name_and_invokes_callback() {
+        let viewModel = SettingsViewModel()
+        var receivedDefaultInputSourceID: String?
+
+        viewModel.reload(
+            from: AppSettings(
+                defaultInputSourceID: nil,
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            launchAtLoginState: .disabled,
+            availableInputSources: [
+                .init(id: "com.apple.keylayout.ABC", displayName: "ABC"),
+                .init(id: "im.wubi", displayName: "简体五笔")
+            ],
+            diagnostics: []
+        )
+        viewModel.onDefaultInputSourceChange = { receivedDefaultInputSourceID = $0 }
+
+        viewModel.setDefaultInputSourceID("im.wubi")
+
+        XCTAssertEqual(viewModel.defaultInputSourceName, "简体五笔")
+        XCTAssertEqual(receivedDefaultInputSourceID, "im.wubi")
+    }
+
+    func test_save_rule_draft_invokes_locked_rule_callback() {
+        let viewModel = SettingsViewModel()
+        var receivedRule: (String, AppRule)?
+
+        viewModel.reload(
+            from: AppSettings(
+                defaultInputSourceID: nil,
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            launchAtLoginState: .disabled,
+            availableInputSources: [
+                .init(id: "com.apple.keylayout.ABC", displayName: "ABC")
+            ],
+            diagnostics: []
+        )
+        viewModel.onUpsertRule = { key, rule in
+            receivedRule = (key, rule)
+        }
+        viewModel.ruleDraftKey = "bundle:com.googlecode.iterm2"
+        viewModel.ruleDraftKind = .locked
+        viewModel.ruleDraftInputSourceID = "com.apple.keylayout.ABC"
+
+        viewModel.saveRuleDraft()
+
+        XCTAssertEqual(receivedRule?.0, "bundle:com.googlecode.iterm2")
+        XCTAssertEqual(receivedRule?.1, .locked(inputSourceID: "com.apple.keylayout.ABC"))
+    }
+
+    func test_delete_rule_invokes_callback_with_rule_key() {
+        let viewModel = SettingsViewModel()
+        var deletedRuleKey: String?
+
+        viewModel.reload(
+            from: AppSettings(
+                defaultInputSourceID: nil,
+                rules: ["bundle:com.googlecode.iterm2": .ignored],
+                launchAtLoginEnabled: false
+            ),
+            launchAtLoginState: .disabled,
+            availableInputSources: [],
+            diagnostics: []
+        )
+        viewModel.onDeleteRule = { deletedRuleKey = $0 }
+
+        viewModel.deleteRule(viewModel.rules[0])
+
+        XCTAssertEqual(deletedRuleKey, "bundle:com.googlecode.iterm2")
+    }
+
     func test_reload_maps_default_input_source_id_to_display_name() {
         let viewModel = SettingsViewModel()
 

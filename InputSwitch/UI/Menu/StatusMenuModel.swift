@@ -5,6 +5,11 @@ struct StatusMenuItem: Equatable {
     let action: MenuAction
 }
 
+enum StatusMenuIcon: Equatable {
+    case image(URL)
+    case text(String)
+}
+
 enum MenuAction: Equatable {
     case ignoreCurrentApp
     case clearCurrentMemory
@@ -15,16 +20,19 @@ enum MenuAction: Equatable {
 }
 
 struct StatusMenuModel: Equatable {
+    let icon: StatusMenuIcon
     let items: [StatusMenuItem]
 
     static func make(
         activeAppName: String,
         currentInputSourceName: String,
+        currentInputSourceIconURL: URL? = nil,
         isPaused: Bool
     ) -> StatusMenuModel {
         let pauseTitle = isPaused ? "恢复自动切换" : "暂停自动切换（30 分钟）"
 
         return StatusMenuModel(
+            icon: currentInputSourceIconURL.map(StatusMenuIcon.image) ?? .text("⌨︎"),
             items: [
                 .init(title: "当前应用：\(activeAppName)", action: .none),
                 .init(title: "当前输入法：\(currentInputSourceName)", action: .none),
