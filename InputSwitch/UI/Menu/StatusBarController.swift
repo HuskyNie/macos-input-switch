@@ -13,8 +13,8 @@ final class StatusBarController: NSObject {
     func render(model: StatusMenuModel) {
         if let button = statusItem.button {
             switch model.icon {
-            case .glyph(let glyph):
-                if let image = makeTemplateIcon(glyph: glyph) {
+            case .templateGlyph(let glyph, let style):
+                if let image = makeTemplateIcon(glyph: glyph, style: style) {
                     button.image = image
                     button.imagePosition = .imageOnly
                     button.title = ""
@@ -50,26 +50,59 @@ final class StatusBarController: NSObject {
         handler(action)
     }
 
-    private func makeTemplateIcon(glyph: String) -> NSImage? {
-        let size = NSSize(width: 18, height: 18)
+    private func makeTemplateIcon(glyph: String, style: StatusMenuIconStyle) -> NSImage? {
+        let size = NSSize(width: 22, height: 18)
         let image = NSImage(size: size, flipped: false) { rect in
-            let font = NSFont.systemFont(ofSize: 12, weight: .semibold)
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: NSColor.labelColor
-            ]
-            let attributed = NSAttributedString(string: glyph, attributes: attributes)
-            let textSize = attributed.size()
-            let drawRect = NSRect(
-                x: rect.midX - textSize.width / 2,
-                y: rect.midY - textSize.height / 2,
-                width: textSize.width,
-                height: textSize.height
-            )
-            attributed.draw(in: drawRect)
+            let badgeRect = NSRect(x: 1.5, y: 1.5, width: rect.width - 3, height: rect.height - 3)
+            let badgePath = NSBezierPath(roundedRect: badgeRect, xRadius: 6, yRadius: 6)
+
+            NSColor.labelColor.setFill()
+            NSColor.labelColor.setStroke()
+
+            switch style {
+            case .outlined:
+                badgePath.lineWidth = 1.8
+                badgePath.stroke()
+                self.drawGlyph(glyph, in: badgeRect, clearCutout: false)
+            case .filledCutout:
+                badgePath.fill()
+                badgePath.lineWidth = 1.0
+                badgePath.stroke()
+                self.drawGlyph(glyph, in: badgeRect, clearCutout: true)
+            }
             return true
         }
         image.isTemplate = true
         return image
+    }
+
+    private func drawGlyph(_ glyph: String, in rect: NSRect, clearCutout: Bool) {
+        let font = NSFont.systemFont(ofSize: 12, weight: .bold)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let attributed = NSAttributedString(
+            string: glyph,
+            attributes: [
+                .font: font,
+                .paragraphStyle: paragraph,
+                .foregroundColor: clearCutout ? NSColor.clear : NSColor.labelColor
+            ]
+        )
+        let textSize = attributed.size()
+        let drawRect = NSRect(
+            x: rect.midX - textSize.width / 2,
+            y: rect.midY - textSize.height / 2 - 0.5,
+            width: textSize.width,
+            height: textSize.height
+        )
+
+        if clearCutout, let context = NSGraphicsContext.current?.cgContext {
+            context.saveGState()
+            context.setBlendMode(.clear)
+            attributed.draw(in: drawRect)
+            context.restoreGState()
+        } else {
+            attributed.draw(in: drawRect)
+        }
     }
 }

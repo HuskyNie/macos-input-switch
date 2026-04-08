@@ -6,7 +6,12 @@ struct StatusMenuItem: Equatable {
 }
 
 enum StatusMenuIcon: Equatable {
-    case glyph(String)
+    case templateGlyph(String, style: StatusMenuIconStyle)
+}
+
+enum StatusMenuIconStyle: Equatable {
+    case outlined
+    case filledCutout
 }
 
 enum MenuAction: Equatable {
@@ -31,7 +36,10 @@ struct StatusMenuModel: Equatable {
         let pauseTitle = isPaused ? "恢复自动切换" : "暂停自动切换（30 分钟）"
 
         return StatusMenuModel(
-            icon: .glyph(menuBarGlyph(for: currentInputSourceName, inputSourceID: currentInputSourceID)),
+            icon: .templateGlyph(
+                menuBarGlyph(for: currentInputSourceName, inputSourceID: currentInputSourceID),
+                style: menuBarGlyphStyle(for: currentInputSourceName, inputSourceID: currentInputSourceID)
+            ),
             items: [
                 .init(title: "当前应用：\(activeAppName)", action: .none),
                 .init(title: "当前输入法：\(currentInputSourceName)", action: .none),
@@ -70,5 +78,17 @@ struct StatusMenuModel: Equatable {
         }
 
         return "⌨︎"
+    }
+
+    static func menuBarGlyphStyle(for inputSourceName: String, inputSourceID: String?) -> StatusMenuIconStyle {
+        let loweredName = inputSourceName.lowercased()
+        let loweredID = inputSourceID?.lowercased() ?? ""
+
+        if loweredName == "abc" || loweredName == "u.s." || loweredName == "us" ||
+            loweredID.contains("keylayout.abc") || loweredID.contains("keylayout.us") {
+            return .outlined
+        }
+
+        return .filledCutout
     }
 }

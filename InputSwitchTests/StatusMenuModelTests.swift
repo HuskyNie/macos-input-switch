@@ -10,7 +10,7 @@ final class StatusMenuModelTests: XCTestCase {
             isPaused: false
         )
 
-        XCTAssertEqual(model.icon, .glyph("A"))
+        XCTAssertEqual(model.icon, .templateGlyph("A", style: .outlined))
     }
 
     func test_menu_maps_shuangpin_to_template_glyph() {
@@ -21,7 +21,7 @@ final class StatusMenuModelTests: XCTestCase {
             isPaused: false
         )
 
-        XCTAssertEqual(model.icon, .glyph("双"))
+        XCTAssertEqual(model.icon, .templateGlyph("双", style: .filledCutout))
     }
 
     func test_menu_maps_wubi_to_template_glyph() {
@@ -32,7 +32,7 @@ final class StatusMenuModelTests: XCTestCase {
             isPaused: false
         )
 
-        XCTAssertEqual(model.icon, .glyph("五"))
+        XCTAssertEqual(model.icon, .templateGlyph("五", style: .filledCutout))
     }
 
     func test_menu_falls_back_to_first_visible_character_for_unknown_input_source() {
@@ -43,7 +43,7 @@ final class StatusMenuModelTests: XCTestCase {
             isPaused: false
         )
 
-        XCTAssertEqual(model.icon, .glyph("搜"))
+        XCTAssertEqual(model.icon, .templateGlyph("搜", style: .filledCutout))
     }
 
     func test_menu_contains_only_the_confirmed_minimal_actions() {
@@ -66,6 +66,6 @@ final class StatusMenuModelTests: XCTestCase {
                 "退出"
             ]
         )
-        XCTAssertEqual(model.icon, .glyph("A"))
+        XCTAssertEqual(model.icon, .templateGlyph("A", style: .outlined))
     }
 }
