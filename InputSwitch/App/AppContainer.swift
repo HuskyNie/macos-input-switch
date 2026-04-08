@@ -91,10 +91,6 @@ final class AppContainer {
         log("已发现输入法：\(inputSourceManager.availableInputSources().count)")
 
         refreshUI()
-
-        if let currentActiveApp {
-            handleAppActivation(currentActiveApp)
-        }
     }
 
     private var isPaused: Bool {
