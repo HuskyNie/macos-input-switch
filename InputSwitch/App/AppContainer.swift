@@ -18,6 +18,7 @@ final class AppContainer {
     private var statusBarController: StatusBarController?
 
     private var currentSettings: AppSettings = .default
+    private var currentLaunchAtLoginState: LaunchAtLoginState = .disabled
     private var currentActiveApp: ApplicationIdentity?
     private var currentInputSource: InputSourceDescriptor?
     private var pausedUntil: Date?
@@ -196,31 +197,40 @@ final class AppContainer {
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
-        guard let settingsViewModel else {
+        guard settingsViewModel != nil else {
             return
         }
 
         do {
             try launchAtLoginService.setEnabled(enabled)
 
+            let launchAtLoginState = launchAtLoginService.status()
+            currentLaunchAtLoginState = launchAtLoginState
             var updatedSettings = currentSettings
-            updatedSettings.launchAtLoginEnabled = launchAtLoginService.isEnabled()
+            updatedSettings.launchAtLoginEnabled = launchAtLoginState.isActive
             try persistSettings(updatedSettings)
 
-            if updatedSettings.launchAtLoginEnabled == enabled {
-                log("开机启动已\(enabled ? "开启" : "关闭")")
-            } else {
-                log("开机启动状态已提交，等待系统确认")
+            switch launchAtLoginState {
+            case .enabled:
+                log("开机启动已开启")
+            case .requiresApproval:
+                log("开机启动状态已提交，等待系统批准")
+            case .disabled:
+                log("开机启动已关闭")
+            case .notFound:
+                log("找不到开机启动服务")
             }
         } catch {
-            settingsViewModel.launchAtLoginEnabled = currentSettings.launchAtLoginEnabled
+            currentLaunchAtLoginState = launchAtLoginService.status()
             log("设置开机启动失败：\(error.localizedDescription)")
             refreshUI()
         }
     }
 
     private func syncLaunchAtLoginState() {
-        let actualEnabled = launchAtLoginService.isEnabled()
+        let actualState = launchAtLoginService.status()
+        currentLaunchAtLoginState = actualState
+        let actualEnabled = actualState.isActive
         guard actualEnabled != currentSettings.launchAtLoginEnabled else {
             return
         }
@@ -261,6 +271,7 @@ final class AppContainer {
 
         settingsViewModel.reload(
             from: currentSettings,
+            launchAtLoginState: currentLaunchAtLoginState,
             availableInputSources: inputSourceManager?.availableInputSources() ?? [],
             diagnostics: diagnosticsLogger.entries
         )

@@ -12,6 +12,7 @@ final class SettingsViewModelTests: XCTestCase {
                 rules: [:],
                 launchAtLoginEnabled: false
             ),
+            launchAtLoginState: .disabled,
             availableInputSources: [
                 .init(id: "com.apple.keylayout.ABC", displayName: "ABC"),
                 .init(id: "im.wubi", displayName: "简体五笔")
@@ -31,6 +32,7 @@ final class SettingsViewModelTests: XCTestCase {
                 rules: [:],
                 launchAtLoginEnabled: false
             ),
+            launchAtLoginState: .disabled,
             availableInputSources: [
                 .init(id: "com.apple.keylayout.ABC", displayName: "ABC")
             ],
@@ -38,5 +40,23 @@ final class SettingsViewModelTests: XCTestCase {
         )
 
         XCTAssertEqual(viewModel.defaultInputSourceName, "missing.input.source")
+    }
+
+    func test_reload_keeps_launch_at_login_enabled_when_status_requires_approval() {
+        let viewModel = SettingsViewModel()
+
+        viewModel.reload(
+            from: AppSettings(
+                defaultInputSourceID: nil,
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            launchAtLoginState: .requiresApproval,
+            availableInputSources: [],
+            diagnostics: []
+        )
+
+        XCTAssertTrue(viewModel.launchAtLoginEnabled)
+        XCTAssertEqual(viewModel.launchAtLoginStatusMessage, "等待系统批准")
     }
 }

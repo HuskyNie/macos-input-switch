@@ -11,14 +11,17 @@ struct SettingsRuleRow: Identifiable, Equatable {
 final class SettingsViewModel: ObservableObject {
     @Published var defaultInputSourceName = "未设置"
     @Published var launchAtLoginEnabled = false
+    @Published var launchAtLoginState: LaunchAtLoginState = .disabled
     @Published var rules: [SettingsRuleRow] = []
     @Published var availableInputSources: [InputSourceDescriptor] = []
     @Published var diagnostics: [String] = []
 
     var onLaunchAtLoginToggle: ((Bool) -> Void)?
+    var launchAtLoginStatusMessage: String { launchAtLoginState.statusMessage }
 
     func reload(
         from settings: AppSettings,
+        launchAtLoginState: LaunchAtLoginState,
         availableInputSources: [InputSourceDescriptor],
         diagnostics: [String]
     ) {
@@ -29,7 +32,8 @@ final class SettingsViewModel: ObservableObject {
         } else {
             defaultInputSourceName = "未设置"
         }
-        launchAtLoginEnabled = settings.launchAtLoginEnabled
+        self.launchAtLoginState = launchAtLoginState
+        launchAtLoginEnabled = launchAtLoginState.isActive
         rules = settings.rules
             .sorted { $0.key < $1.key }
             .map { SettingsRuleRow(key: $0.key, rule: $0.value) }
@@ -39,6 +43,7 @@ final class SettingsViewModel: ObservableObject {
 
     func setLaunchAtLogin(_ enabled: Bool) {
         launchAtLoginEnabled = enabled
+        launchAtLoginState = enabled ? .requiresApproval : .disabled
         onLaunchAtLoginToggle?(enabled)
     }
 }
