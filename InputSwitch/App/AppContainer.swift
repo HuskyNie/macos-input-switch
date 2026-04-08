@@ -256,7 +256,10 @@ final class AppContainer {
             ruleEngine: RuleEngine(),
             inputSourceManager: inputSourceManager,
             settingsStore: settingsStore,
-            memoryStore: memoryStore
+            memoryStore: memoryStore,
+            diagnostics: { [weak self] message in
+                self?.log(message)
+            }
         )
 
         if let currentActiveApp, !isPaused {
