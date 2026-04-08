@@ -5,3 +5,9 @@ build/
 xcuserdata/
 *.xcuserstate
 .superpowers/brainstorm/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
