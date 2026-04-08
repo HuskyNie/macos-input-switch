@@ -2,24 +2,55 @@ import XCTest
 @testable import InputSwitch
 
 final class StatusMenuModelTests: XCTestCase {
-    func test_menu_prefers_current_input_source_icon_when_available() {
-        let iconURL = URL(fileURLWithPath: "/tmp/abc-icon.png")
-
+    func test_menu_maps_abc_to_template_glyph_a() {
         let model = StatusMenuModel.make(
             activeAppName: "iTerm2",
             currentInputSourceName: "ABC",
-            currentInputSourceIconURL: iconURL,
+            currentInputSourceID: "com.apple.keylayout.ABC",
             isPaused: false
         )
 
-        XCTAssertEqual(model.icon, .image(iconURL))
+        XCTAssertEqual(model.icon, .glyph("A"))
+    }
+
+    func test_menu_maps_shuangpin_to_template_glyph() {
+        let model = StatusMenuModel.make(
+            activeAppName: "iTerm2",
+            currentInputSourceName: "Shuangpin – Simplified",
+            currentInputSourceID: "com.apple.inputmethod.SCIM.Shuangpin",
+            isPaused: false
+        )
+
+        XCTAssertEqual(model.icon, .glyph("双"))
+    }
+
+    func test_menu_maps_wubi_to_template_glyph() {
+        let model = StatusMenuModel.make(
+            activeAppName: "iTerm2",
+            currentInputSourceName: "五笔",
+            currentInputSourceID: "im.wubi",
+            isPaused: false
+        )
+
+        XCTAssertEqual(model.icon, .glyph("五"))
+    }
+
+    func test_menu_falls_back_to_first_visible_character_for_unknown_input_source() {
+        let model = StatusMenuModel.make(
+            activeAppName: "iTerm2",
+            currentInputSourceName: "搜狗输入法",
+            currentInputSourceID: "com.sogou.inputmethod",
+            isPaused: false
+        )
+
+        XCTAssertEqual(model.icon, .glyph("搜"))
     }
 
     func test_menu_contains_only_the_confirmed_minimal_actions() {
         let model = StatusMenuModel.make(
             activeAppName: "iTerm2",
             currentInputSourceName: "ABC",
-            currentInputSourceIconURL: nil,
+            currentInputSourceID: nil,
             isPaused: false
         )
 
@@ -35,6 +66,6 @@ final class StatusMenuModelTests: XCTestCase {
                 "退出"
             ]
         )
-        XCTAssertEqual(model.icon, .text("⌨︎"))
+        XCTAssertEqual(model.icon, .glyph("A"))
     }
 }

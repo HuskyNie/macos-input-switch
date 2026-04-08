@@ -350,7 +350,7 @@ final class AppContainer {
             model: StatusMenuModel.make(
                 activeAppName: currentActiveApp?.displayName ?? "未检测到",
                 currentInputSourceName: currentInputSource?.displayName ?? "未检测到",
-                currentInputSourceIconURL: currentInputSource?.iconURL,
+                currentInputSourceID: currentInputSource?.id,
                 isPaused: isPaused
             )
         )

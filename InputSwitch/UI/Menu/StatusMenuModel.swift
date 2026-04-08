@@ -6,8 +6,7 @@ struct StatusMenuItem: Equatable {
 }
 
 enum StatusMenuIcon: Equatable {
-    case image(URL)
-    case text(String)
+    case glyph(String)
 }
 
 enum MenuAction: Equatable {
@@ -26,13 +25,13 @@ struct StatusMenuModel: Equatable {
     static func make(
         activeAppName: String,
         currentInputSourceName: String,
-        currentInputSourceIconURL: URL? = nil,
+        currentInputSourceID: String? = nil,
         isPaused: Bool
     ) -> StatusMenuModel {
         let pauseTitle = isPaused ? "恢复自动切换" : "暂停自动切换（30 分钟）"
 
         return StatusMenuModel(
-            icon: currentInputSourceIconURL.map(StatusMenuIcon.image) ?? .text("⌨︎"),
+            icon: .glyph(menuBarGlyph(for: currentInputSourceName, inputSourceID: currentInputSourceID)),
             items: [
                 .init(title: "当前应用：\(activeAppName)", action: .none),
                 .init(title: "当前输入法：\(currentInputSourceName)", action: .none),
@@ -43,5 +42,33 @@ struct StatusMenuModel: Equatable {
                 .init(title: "退出", action: .quit)
             ]
         )
+    }
+
+    static func menuBarGlyph(for inputSourceName: String, inputSourceID: String?) -> String {
+        let loweredName = inputSourceName.lowercased()
+        let loweredID = inputSourceID?.lowercased() ?? ""
+
+        if loweredName == "abc" || loweredName == "u.s." || loweredName == "us" ||
+            loweredID.contains("keylayout.abc") || loweredID.contains("keylayout.us") {
+            return "A"
+        }
+
+        if inputSourceName.contains("双拼") || loweredName.contains("shuangpin") || loweredID.contains("shuangpin") {
+            return "双"
+        }
+
+        if inputSourceName.contains("五笔") || loweredName.contains("wubi") || loweredID.contains("wubi") {
+            return "五"
+        }
+
+        if inputSourceName.contains("拼音") || loweredName.contains("pinyin") || loweredID.contains("pinyin") {
+            return "拼"
+        }
+
+        if let character = inputSourceName.first(where: { !$0.isWhitespace && !$0.isPunctuation }) {
+            return String(character)
+        }
+
+        return "⌨︎"
     }
 }
