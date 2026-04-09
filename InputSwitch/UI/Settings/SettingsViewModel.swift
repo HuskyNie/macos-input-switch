@@ -26,9 +26,11 @@ final class SettingsViewModel: ObservableObject {
     @Published var ruleDraftKey = ""
     @Published var ruleDraftKind: SettingsRuleDraftKind = .ignored
     @Published var ruleDraftInputSourceID: String?
+    @Published var debugLoggingEnabled = false
 
     var onLaunchAtLoginToggle: ((Bool) -> Void)?
     var onDefaultInputSourceChange: ((String?) -> Void)?
+    var onDebugLoggingToggle: ((Bool) -> Void)?
     var onUpsertRule: ((String, AppRule) -> Void)?
     var onDeleteRule: ((String) -> Void)?
     var launchAtLoginStatusMessage: String { launchAtLoginState.statusMessage }
@@ -48,6 +50,7 @@ final class SettingsViewModel: ObservableObject {
         defaultInputSourceName = displayName(for: settings.defaultInputSourceID)
         self.launchAtLoginState = launchAtLoginState
         launchAtLoginEnabled = launchAtLoginState.isActive
+        debugLoggingEnabled = settings.debugLoggingEnabled
         rules = settings.rules
             .sorted { $0.key < $1.key }
             .map { SettingsRuleRow(key: $0.key, rule: $0.value) }
@@ -85,6 +88,11 @@ final class SettingsViewModel: ObservableObject {
         ruleDraftKey = ""
         ruleDraftKind = .ignored
         ruleDraftInputSourceID = nil
+    }
+
+    func setDebugLoggingEnabled(_ enabled: Bool) {
+        debugLoggingEnabled = enabled
+        onDebugLoggingToggle?(enabled)
     }
 
     func saveRuleDraft() {

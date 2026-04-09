@@ -22,6 +22,14 @@ final class SwitchCoordinatorTests: XCTestCase {
         )
 
         XCTAssertEqual(harness.inputSourceManager.switchCalls, ["com.apple.keylayout.ABC"])
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：iTerm2",
+                "[DEBUG] 命中规则（锁定）：iTerm2 -> com.apple.keylayout.ABC",
+                "[DEBUG] 实际执行切换：com.apple.keylayout.ABC"
+            ]
+        )
     }
 
     func test_programmatic_input_change_is_not_written_to_memory() {
@@ -52,6 +60,15 @@ final class SwitchCoordinatorTests: XCTestCase {
         )
 
         XCTAssertTrue(harness.memoryStore.savedSnapshots.isEmpty)
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：iTerm2",
+                "[DEBUG] 命中规则（锁定）：iTerm2 -> com.apple.keylayout.ABC",
+                "[DEBUG] 实际执行切换：com.apple.keylayout.ABC",
+                "[DEBUG] 程序回流输入法事件被忽略：com.apple.keylayout.ABC"
+            ]
+        )
     }
 
     func test_user_input_change_updates_memory_for_managed_app() {
@@ -78,6 +95,14 @@ final class SwitchCoordinatorTests: XCTestCase {
         )
 
         XCTAssertEqual(harness.memoryStore.savedSnapshots.last?["bundle:com.apple.dt.Xcode"], "im.wubi")
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 使用默认输入法，当前已匹配无需切换：Xcode",
+                "[DEBUG] 用户主动切换后写入记忆：Xcode -> im.wubi"
+            ]
+        )
     }
 
     func test_user_input_change_propagates_memory_save_failure() {
@@ -107,6 +132,14 @@ final class SwitchCoordinatorTests: XCTestCase {
         ) { error in
             XCTAssertEqual(error as? StubError, expectedError)
         }
+
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 使用默认输入法，当前已匹配无需切换：Xcode"
+            ]
+        )
     }
 
     func test_app_activation_falls_back_to_default_and_logs_when_remembered_input_source_is_unavailable() {
@@ -136,6 +169,14 @@ final class SwitchCoordinatorTests: XCTestCase {
                 "已回退到默认输入法，应用：Xcode，输入法 ID：com.apple.keylayout.ABC"
             ]
         )
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 命中记忆：Xcode -> im.wubi",
+                "[DEBUG] 实际执行切换：com.apple.keylayout.ABC"
+            ]
+        )
     }
 
     func test_app_activation_keeps_current_and_logs_when_target_and_default_input_sources_are_unavailable() {
@@ -160,6 +201,13 @@ final class SwitchCoordinatorTests: XCTestCase {
             [
                 "目标输入法已不可用，应用：Xcode，原因：remembered，输入法 ID：im.wubi",
                 "默认输入法也不可用，保持当前输入法不变，应用：Xcode，默认输入法 ID：com.apple.keylayout.ABC"
+            ]
+        )
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 命中记忆：Xcode -> im.wubi"
             ]
         )
     }
@@ -200,6 +248,195 @@ final class SwitchCoordinatorTests: XCTestCase {
         harness.coordinator.handleAppDidActivate(app)
 
         XCTAssertTrue(harness.inputSourceManager.switchCalls.isEmpty)
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 使用默认输入法，当前已匹配无需切换：Xcode",
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 使用默认输入法，当前已匹配无需切换：Xcode"
+            ]
+        )
+    }
+
+    func test_app_activation_ignored_rule_keeps_current_and_logs_debug_reason() {
+        let harness = CoordinatorHarness(
+            currentInputSource: .init(id: "com.apple.keylayout.ABC", displayName: "ABC"),
+            availableInputSources: [.init(id: "com.apple.keylayout.ABC", displayName: "ABC")],
+            settings: AppSettings(
+                defaultInputSourceID: "com.apple.keylayout.ABC",
+                rules: ["bundle:com.apple.dt.Xcode": .ignored],
+                launchAtLoginEnabled: false
+            ),
+            memories: [:]
+        )
+
+        harness.coordinator.handleAppDidActivate(
+            .init(bundleID: "com.apple.dt.Xcode", bundlePath: nil, executableName: "Xcode", displayName: "Xcode")
+        )
+
+        XCTAssertTrue(harness.inputSourceManager.switchCalls.isEmpty)
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 命中不管理：Xcode"
+            ]
+        )
+    }
+
+    func test_app_activation_uses_default_input_source_and_logs_debug_reason() {
+        let harness = CoordinatorHarness(
+            currentInputSource: .init(id: "com.apple.keylayout.US", displayName: "U.S."),
+            availableInputSources: [
+                .init(id: "com.apple.keylayout.US", displayName: "U.S."),
+                .init(id: "com.apple.keylayout.ABC", displayName: "ABC")
+            ],
+            settings: AppSettings(
+                defaultInputSourceID: "com.apple.keylayout.ABC",
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            memories: [:]
+        )
+
+        harness.coordinator.handleAppDidActivate(
+            .init(bundleID: "com.apple.dt.Xcode", bundlePath: nil, executableName: "Xcode", displayName: "Xcode")
+        )
+
+        XCTAssertEqual(harness.inputSourceManager.switchCalls, ["com.apple.keylayout.ABC"])
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 使用默认输入法：Xcode -> com.apple.keylayout.ABC",
+                "[DEBUG] 实际执行切换：com.apple.keylayout.ABC"
+            ]
+        )
+    }
+
+    func test_app_activation_without_default_rule_or_memory_keeps_current_with_neutral_debug_reason() {
+        let harness = CoordinatorHarness(
+            currentInputSource: .init(id: "com.apple.keylayout.US", displayName: "U.S."),
+            availableInputSources: [.init(id: "com.apple.keylayout.US", displayName: "U.S.")],
+            settings: AppSettings(
+                defaultInputSourceID: nil,
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            memories: [:]
+        )
+
+        harness.coordinator.handleAppDidActivate(
+            .init(bundleID: "com.apple.dt.Xcode", bundlePath: nil, executableName: "Xcode", displayName: "Xcode")
+        )
+
+        XCTAssertTrue(harness.inputSourceManager.switchCalls.isEmpty)
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 当前已匹配无需切换：Xcode"
+            ]
+        )
+    }
+
+    func test_locked_rule_skips_memory_update_and_logs_debug_reason() {
+        let harness = CoordinatorHarness(
+            currentInputSource: .init(id: "com.apple.keylayout.ABC", displayName: "ABC"),
+            availableInputSources: [.init(id: "com.apple.keylayout.ABC", displayName: "ABC")],
+            settings: AppSettings(
+                defaultInputSourceID: "com.apple.keylayout.ABC",
+                rules: ["bundle:com.apple.dt.Xcode": .locked(inputSourceID: "com.apple.keylayout.ABC")],
+                launchAtLoginEnabled: false
+            ),
+            memories: [:]
+        )
+
+        let app = ApplicationIdentity(
+            bundleID: "com.apple.dt.Xcode",
+            bundlePath: nil,
+            executableName: "Xcode",
+            displayName: "Xcode"
+        )
+        harness.coordinator.handleAppDidActivate(app)
+        XCTAssertNoThrow(
+            try harness.coordinator.handleInputSourceDidChange(to: .init(id: "im.wubi", displayName: "简体五笔"))
+        )
+
+        XCTAssertTrue(harness.memoryStore.savedSnapshots.isEmpty)
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 命中规则，当前已匹配无需切换：Xcode",
+                "[DEBUG] 因锁定规则或不管理而跳过记忆更新：Xcode"
+            ]
+        )
+    }
+
+    func test_ignored_rule_skips_memory_update_and_logs_debug_reason() {
+        let harness = CoordinatorHarness(
+            currentInputSource: .init(id: "com.apple.keylayout.ABC", displayName: "ABC"),
+            availableInputSources: [.init(id: "com.apple.keylayout.ABC", displayName: "ABC")],
+            settings: AppSettings(
+                defaultInputSourceID: "com.apple.keylayout.ABC",
+                rules: ["bundle:com.apple.dt.Xcode": .ignored],
+                launchAtLoginEnabled: false
+            ),
+            memories: [:]
+        )
+
+        let app = ApplicationIdentity(
+            bundleID: "com.apple.dt.Xcode",
+            bundlePath: nil,
+            executableName: "Xcode",
+            displayName: "Xcode"
+        )
+        harness.coordinator.handleAppDidActivate(app)
+        XCTAssertNoThrow(
+            try harness.coordinator.handleInputSourceDidChange(to: .init(id: "im.wubi", displayName: "简体五笔"))
+        )
+
+        XCTAssertTrue(harness.memoryStore.savedSnapshots.isEmpty)
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 命中不管理：Xcode",
+                "[DEBUG] 因锁定规则或不管理而跳过记忆更新：Xcode"
+            ]
+        )
+    }
+
+    func test_app_activation_switches_to_remembered_input_source_and_logs_debug_reason() {
+        let harness = CoordinatorHarness(
+            currentInputSource: .init(id: "com.apple.keylayout.US", displayName: "U.S."),
+            availableInputSources: [
+                .init(id: "com.apple.keylayout.US", displayName: "U.S."),
+                .init(id: "im.wubi", displayName: "简体五笔")
+            ],
+            settings: AppSettings(
+                defaultInputSourceID: "com.apple.keylayout.US",
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            memories: ["bundle:com.apple.dt.Xcode": "im.wubi"]
+        )
+
+        harness.coordinator.handleAppDidActivate(
+            .init(bundleID: "com.apple.dt.Xcode", bundlePath: nil, executableName: "Xcode", displayName: "Xcode")
+        )
+
+        XCTAssertEqual(harness.inputSourceManager.switchCalls, ["im.wubi"])
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：Xcode",
+                "[DEBUG] 命中记忆：Xcode -> im.wubi",
+                "[DEBUG] 实际执行切换：im.wubi"
+            ]
+        )
     }
 }
 
@@ -271,9 +508,13 @@ private struct CoordinatorHarness {
     let memoryStore: RecordingMemoryStore
     let coordinator: SwitchCoordinator
     let diagnosticsRecorder: DiagnosticsRecorder
+    let debugDiagnosticsRecorder: DiagnosticsRecorder
 
     var diagnostics: [String] {
         diagnosticsRecorder.entries
+    }
+    var debugDiagnostics: [String] {
+        debugDiagnosticsRecorder.entries
     }
 
     init(
@@ -284,6 +525,7 @@ private struct CoordinatorHarness {
         memorySaveError: Error? = nil
     ) {
         diagnosticsRecorder = DiagnosticsRecorder()
+        debugDiagnosticsRecorder = DiagnosticsRecorder()
         let availableInputSources = availableInputSources ?? currentInputSource.map { [$0] } ?? []
         inputSourceManager = FakeInputSourceManager(current: currentInputSource, availableSources: availableInputSources)
         memoryStore = RecordingMemoryStore(initialMemory: memories, saveError: memorySaveError)
@@ -292,7 +534,8 @@ private struct CoordinatorHarness {
             inputSourceManager: inputSourceManager,
             settingsStore: StubSettingsStore(settings: settings),
             memoryStore: memoryStore,
-            diagnostics: diagnosticsRecorder.log(_:)
+            diagnostics: diagnosticsRecorder.log(_:),
+            debugDiagnostics: debugDiagnosticsRecorder.log(_:)
         )
     }
 }

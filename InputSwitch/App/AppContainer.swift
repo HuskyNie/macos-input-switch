@@ -75,6 +75,11 @@ final class AppContainer {
                 self?.setDefaultInputSource(inputSourceID)
             }
         }
+        settingsViewModel.onDebugLoggingToggle = { [weak self] enabled in
+            Task { @MainActor in
+                self?.setDebugLogging(enabled)
+            }
+        }
         settingsViewModel.onUpsertRule = { [weak self] key, rule in
             Task { @MainActor in
                 self?.upsertRule(key: key, rule: rule)
@@ -311,6 +316,19 @@ final class AppContainer {
         }
     }
 
+    private func setDebugLogging(_ enabled: Bool) {
+        var updatedSettings = currentSettings
+        updatedSettings.debugLoggingEnabled = enabled
+
+        do {
+            try persistSettings(updatedSettings)
+            log(enabled ? "已启用 Debug 日志" : "已关闭 Debug 日志")
+        } catch {
+            log("保存 Debug 日志设置失败：\(error.localizedDescription)")
+            refreshUI()
+        }
+    }
+
     private func rebuildCoordinator() {
         guard let settingsStore, let memoryStore, let inputSourceManager else {
             return
@@ -323,6 +341,9 @@ final class AppContainer {
             memoryStore: memoryStore,
             diagnostics: { [weak self] message in
                 self?.log(message)
+            },
+            debugDiagnostics: { [weak self] message in
+                self?.debugLog(message)
             }
         )
 
@@ -397,6 +418,16 @@ final class AppContainer {
 
     private func log(_ message: String) {
         diagnosticsLogger.log(message)
+        print(message)
+        refreshUI()
+    }
+
+    private func debugLog(_ message: String) {
+        guard currentSettings.debugLoggingEnabled else {
+            return
+        }
+        diagnosticsLogger.log(message)
+        print(message)
         refreshUI()
     }
 }

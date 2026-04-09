@@ -11,6 +11,7 @@ final class FileStoreTests: XCTestCase {
         XCTAssertNil(settings.defaultInputSourceID)
         XCTAssertTrue(settings.rules.isEmpty)
         XCTAssertFalse(settings.launchAtLoginEnabled)
+        XCTAssertFalse(settings.debugLoggingEnabled)
     }
 
     func test_memory_store_persists_and_reloads_entries() throws {
@@ -34,6 +35,45 @@ final class FileStoreTests: XCTestCase {
         XCTAssertNil(settings.defaultInputSourceID)
         XCTAssertTrue(settings.rules.isEmpty)
         XCTAssertFalse(settings.launchAtLoginEnabled)
+        XCTAssertFalse(settings.debugLoggingEnabled)
+    }
+
+    func test_settings_store_load_decodes_when_legacy_file_missing_debug_flag() throws {
+        let directory = try makeTemporaryDirectory()
+        let fileURL = directory.appendingPathComponent("settings.json")
+        try Data(
+            """
+            {
+              "defaultInputSourceID" : "com.apple.keylayout.ABC",
+              "rules" : {},
+              "launchAtLoginEnabled" : true
+            }
+            """.utf8
+        ).write(to: fileURL)
+        let store = SettingsStore(baseDirectory: directory)
+
+        let settings = store.load()
+
+        XCTAssertEqual(settings.defaultInputSourceID, "com.apple.keylayout.ABC")
+        XCTAssertTrue(settings.rules.isEmpty)
+        XCTAssertTrue(settings.launchAtLoginEnabled)
+        XCTAssertFalse(settings.debugLoggingEnabled)
+    }
+
+    func test_settings_store_save_and_reload_preserves_debug_logging_enabled() throws {
+        let directory = try makeTemporaryDirectory()
+        let store = SettingsStore(baseDirectory: directory)
+        let expected = AppSettings(
+            defaultInputSourceID: "com.apple.keylayout.ABC",
+            rules: ["bundle:com.apple.dt.Xcode": .locked(inputSourceID: "im.wubi")],
+            launchAtLoginEnabled: true,
+            debugLoggingEnabled: true
+        )
+
+        try store.save(expected)
+        let loaded = store.load()
+
+        XCTAssertEqual(loaded, expected)
     }
 
     func test_memory_store_returns_empty_dictionary_when_file_is_missing() throws {

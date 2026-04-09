@@ -29,6 +29,13 @@ struct GeneralPane: View {
             Text(viewModel.launchAtLoginStatusMessage)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            Toggle(
+                "Debug 日志",
+                isOn: Binding(
+                    get: { viewModel.debugLoggingEnabled },
+                    set: { viewModel.setDebugLoggingEnabled($0) }
+                )
+            )
         }
         .padding()
     }

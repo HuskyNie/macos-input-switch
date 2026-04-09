@@ -134,4 +134,34 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.launchAtLoginEnabled)
         XCTAssertEqual(viewModel.launchAtLoginStatusMessage, "等待系统批准")
     }
+
+    func test_reload_updates_debug_logging_enabled() {
+        let viewModel = SettingsViewModel()
+
+        viewModel.reload(
+            from: AppSettings(
+                defaultInputSourceID: nil,
+                rules: [:],
+                launchAtLoginEnabled: false,
+                debugLoggingEnabled: true
+            ),
+            launchAtLoginState: .disabled,
+            availableInputSources: [],
+            diagnostics: []
+        )
+
+        XCTAssertTrue(viewModel.debugLoggingEnabled)
+    }
+
+    func test_set_debug_logging_enabled_triggers_callback() {
+        let viewModel = SettingsViewModel()
+        var receivedValue: Bool?
+
+        viewModel.onDebugLoggingToggle = { receivedValue = $0 }
+
+        viewModel.setDebugLoggingEnabled(true)
+
+        XCTAssertTrue(viewModel.debugLoggingEnabled)
+        XCTAssertEqual(receivedValue, true)
+    }
 }
