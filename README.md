@@ -168,3 +168,7 @@ xcodegen generate
 ### 规则看起来没有生效
 
 规则按匹配键保存。正常情况下优先使用 `bundle:<bundle id>`，如果 App 没有 Bundle ID，才会退到 `path:<bundle path>` 或 `exec:<executable name>`。可以在规则列表中查看每条规则的完整键。
+
+## License
+
+MIT License. See [LICENSE](./LICENSE).
