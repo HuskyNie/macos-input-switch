@@ -11,6 +11,7 @@ final class SettingsWindowController: NSWindowController {
         window.title = "InputSwitch 设置"
         window.styleMask.insert([.closable, .miniaturizable, .resizable, .titled])
         window.setContentSize(NSSize(width: 820, height: 520))
+        window.isReleasedWhenClosed = false
         window.center()
 
         super.init(window: window)
@@ -25,6 +26,7 @@ final class SettingsWindowController: NSWindowController {
     func show() {
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+        window?.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
     }
 }

@@ -37,12 +37,12 @@ final class TISInputSourceService: NSObject, InputSourceManaging {
         return descriptor(from: source)
     }
 
-    func switchToInputSource(id: String) {
+    func switchToInputSource(id: String) -> Bool {
         guard let source = copySources().first(where: { descriptor(from: $0)?.id == id }) else {
-            return
+            return false
         }
 
-        TISSelectInputSource(source)
+        return TISSelectInputSource(source) == noErr
     }
 
     @objc private func handleSelectedInputSourceDidChange(_ notification: Notification) {

@@ -438,6 +438,50 @@ final class SwitchCoordinatorTests: XCTestCase {
             ]
         )
     }
+
+    func test_failed_programmatic_switch_logs_and_does_not_suppress_next_input_change() {
+        let harness = CoordinatorHarness(
+            currentInputSource: .init(id: "com.apple.inputmethod.SCIM.ITABC", displayName: "简体拼音"),
+            availableInputSources: [
+                .init(id: "com.apple.inputmethod.SCIM.ITABC", displayName: "简体拼音"),
+                .init(id: "com.apple.keylayout.ABC", displayName: "ABC")
+            ],
+            settings: AppSettings(
+                defaultInputSourceID: "com.apple.keylayout.ABC",
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            memories: [:],
+            switchShouldSucceed: false
+        )
+
+        let app = ApplicationIdentity(
+            bundleID: "com.googlecode.iterm2",
+            bundlePath: nil,
+            executableName: "iTerm2",
+            displayName: "iTerm2"
+        )
+
+        harness.coordinator.handleAppDidActivate(app)
+        XCTAssertNoThrow(
+            try harness.coordinator.handleInputSourceDidChange(to: .init(id: "com.apple.keylayout.ABC", displayName: "ABC"))
+        )
+
+        XCTAssertEqual(
+            harness.diagnostics,
+            ["切换输入法失败，应用：iTerm2，输入法 ID：com.apple.keylayout.ABC"]
+        )
+        XCTAssertEqual(harness.memoryStore.savedSnapshots.last?["bundle:com.googlecode.iterm2"], "com.apple.keylayout.ABC")
+        XCTAssertEqual(
+            harness.debugDiagnostics,
+            [
+                "[DEBUG] 应用切换开始：iTerm2",
+                "[DEBUG] 使用默认输入法：iTerm2 -> com.apple.keylayout.ABC",
+                "[DEBUG] 实际执行切换：com.apple.keylayout.ABC",
+                "[DEBUG] 用户主动切换后写入记忆：iTerm2 -> com.apple.keylayout.ABC"
+            ]
+        )
+    }
 }
 
 private final class FakeInputSourceManager: InputSourceManaging {
@@ -446,10 +490,12 @@ private final class FakeInputSourceManager: InputSourceManaging {
 
     private let availableSources: [InputSourceDescriptor]
     private var current: InputSourceDescriptor?
+    private let switchShouldSucceed: Bool
 
-    init(current: InputSourceDescriptor?, availableSources: [InputSourceDescriptor]) {
+    init(current: InputSourceDescriptor?, availableSources: [InputSourceDescriptor], switchShouldSucceed: Bool = true) {
         self.current = current
         self.availableSources = availableSources
+        self.switchShouldSucceed = switchShouldSucceed
     }
 
     func start() {}
@@ -462,9 +508,13 @@ private final class FakeInputSourceManager: InputSourceManaging {
         current
     }
 
-    func switchToInputSource(id: String) {
+    func switchToInputSource(id: String) -> Bool {
         switchCalls.append(id)
+        guard switchShouldSucceed else {
+            return false
+        }
         current = availableSources.first(where: { $0.id == id }) ?? current
+        return availableSources.contains(where: { $0.id == id })
     }
 
     func resetSwitchCalls() {
@@ -522,18 +572,26 @@ private struct CoordinatorHarness {
         availableInputSources: [InputSourceDescriptor]? = nil,
         settings: AppSettings,
         memories: [String: String],
-        memorySaveError: Error? = nil
+        memorySaveError: Error? = nil,
+        switchShouldSucceed: Bool = true
     ) {
         diagnosticsRecorder = DiagnosticsRecorder()
         debugDiagnosticsRecorder = DiagnosticsRecorder()
         let availableInputSources = availableInputSources ?? currentInputSource.map { [$0] } ?? []
-        inputSourceManager = FakeInputSourceManager(current: currentInputSource, availableSources: availableInputSources)
+        inputSourceManager = FakeInputSourceManager(
+            current: currentInputSource,
+            availableSources: availableInputSources,
+            switchShouldSucceed: switchShouldSucceed
+        )
         memoryStore = RecordingMemoryStore(initialMemory: memories, saveError: memorySaveError)
         coordinator = SwitchCoordinator(
             ruleEngine: RuleEngine(),
             inputSourceManager: inputSourceManager,
             settingsStore: StubSettingsStore(settings: settings),
             memoryStore: memoryStore,
+            availableInputSourceIDsProvider: {
+                Set(availableInputSources.map(\.id))
+            },
             diagnostics: diagnosticsRecorder.log(_:),
             debugDiagnostics: debugDiagnosticsRecorder.log(_:)
         )

@@ -1,7 +1,12 @@
 import AppKit
 
 @MainActor
-final class StatusBarController: NSObject {
+protocol StatusMenuRendering: AnyObject {
+    func render(model: StatusMenuModel)
+}
+
+@MainActor
+final class StatusBarController: NSObject, StatusMenuRendering {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let handler: (MenuAction) -> Void
 
@@ -27,6 +32,11 @@ final class StatusBarController: NSObject {
 
         let menu = NSMenu()
         for item in model.items {
+            if item.isSeparator {
+                menu.addItem(.separator())
+                continue
+            }
+
             let menuItem = NSMenuItem(
                 title: item.title,
                 action: #selector(handleMenuItem(_:)),
@@ -35,6 +45,9 @@ final class StatusBarController: NSObject {
             menuItem.target = self
             menuItem.representedObject = item.action
             menuItem.isEnabled = item.action != .none
+            if let systemImageName = item.systemImageName {
+                menuItem.image = NSImage(systemSymbolName: systemImageName, accessibilityDescription: nil)
+            }
             menu.addItem(menuItem)
         }
 

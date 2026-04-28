@@ -1,38 +1,93 @@
 import AppKit
 import Foundation
 
+protocol AppTimerControlling {
+    func invalidate()
+}
+
+final class FoundationAppTimerController: AppTimerControlling {
+    private var timer: Timer?
+
+    init(timer: Timer) {
+        self.timer = timer
+    }
+
+    func invalidate() {
+        timer?.invalidate()
+        timer = nil
+    }
+}
+
 @MainActor
 final class AppContainer {
     private let fileManager: FileManager
     private let permissionService: PermissionService
     private let diagnosticsLogger: DiagnosticsLogger
     private let launchAtLoginService: LaunchAtLoginService
+    private let inputSourceManagerFactory: () -> any InputSourceManaging
+    private let activeAppMonitorFactory: () -> any ActiveAppMonitoring
+    private let statusBarControllerFactory: (@escaping (MenuAction) -> Void) -> any StatusMenuRendering
+    private let frontmostApplicationProvider: () -> ApplicationIdentity?
+    private let activateAppAction: () -> Void
+    private let showSettingsAction: () -> Bool
+    private let pauseTimerScheduler: (TimeInterval, @escaping @Sendable () -> Void) -> any AppTimerControlling
 
     private var settingsStore: SettingsStore?
     private var memoryStore: MemoryStore?
-    private var inputSourceManager: TISInputSourceService?
-    private var activeAppMonitor: WorkspaceActiveAppMonitor?
+    private var inputSourceManager: (any InputSourceManaging)?
+    private var activeAppMonitor: (any ActiveAppMonitoring)?
     private var switchCoordinator: SwitchCoordinator?
-    private var settingsViewModel: SettingsViewModel?
+    private(set) weak var settingsViewModel: SettingsViewModel?
+    private var fallbackSettingsViewModel: SettingsViewModel?
     private var settingsWindowController: SettingsWindowController?
-    private var statusBarController: StatusBarController?
+    private var statusBarController: (any StatusMenuRendering)?
+    private var pauseTimer: (any AppTimerControlling)?
 
     private var currentSettings: AppSettings = .default
     private var currentLaunchAtLoginState: LaunchAtLoginState = .disabled
     private var currentActiveApp: ApplicationIdentity?
     private var currentInputSource: InputSourceDescriptor?
+    private var availableInputSources: [InputSourceDescriptor] = []
     private var pausedUntil: Date?
 
     init(
         fileManager: FileManager = .default,
         permissionService: PermissionService = PermissionService(),
         diagnosticsLogger: DiagnosticsLogger = DiagnosticsLogger(),
-        launchAtLoginService: LaunchAtLoginService = LaunchAtLoginService()
+        launchAtLoginService: LaunchAtLoginService = LaunchAtLoginService(),
+        inputSourceManagerFactory: @escaping () -> any InputSourceManaging = { TISInputSourceService() },
+        activeAppMonitorFactory: @escaping () -> any ActiveAppMonitoring = { WorkspaceActiveAppMonitor() },
+        statusBarControllerFactory: @escaping (@escaping (MenuAction) -> Void) -> any StatusMenuRendering = { handler in
+            StatusBarController(handler: handler)
+        },
+        frontmostApplicationProvider: @escaping () -> ApplicationIdentity? = {
+            AppContainer.resolveFrontmostApplicationIdentity()
+        },
+        activateAppAction: @escaping () -> Void = {
+            NSApp.activate(ignoringOtherApps: true)
+        },
+        showSettingsAction: @escaping () -> Bool = {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        },
+        pauseTimerScheduler: @escaping (TimeInterval, @escaping @Sendable () -> Void) -> any AppTimerControlling = { interval, action in
+            FoundationAppTimerController(
+                timer: Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { _ in
+                    action()
+                }
+            )
+        }
     ) {
         self.fileManager = fileManager
         self.permissionService = permissionService
         self.diagnosticsLogger = diagnosticsLogger
         self.launchAtLoginService = launchAtLoginService
+        self.inputSourceManagerFactory = inputSourceManagerFactory
+        self.activeAppMonitorFactory = activeAppMonitorFactory
+        self.statusBarControllerFactory = statusBarControllerFactory
+        self.frontmostApplicationProvider = frontmostApplicationProvider
+        self.activateAppAction = activateAppAction
+        self.showSettingsAction = showSettingsAction
+        self.pauseTimerScheduler = pauseTimerScheduler
     }
 
     func bootstrap() {
@@ -43,11 +98,9 @@ final class AppContainer {
         let baseDirectory = makeBaseDirectory()
         let settingsStore = SettingsStore(baseDirectory: baseDirectory)
         let memoryStore = MemoryStore(baseDirectory: baseDirectory)
-        let inputSourceManager = TISInputSourceService()
-        let activeAppMonitor = WorkspaceActiveAppMonitor()
-        let settingsViewModel = SettingsViewModel()
-        let settingsWindowController = SettingsWindowController(viewModel: settingsViewModel)
-        let statusBarController = StatusBarController { [weak self] action in
+        let inputSourceManager = inputSourceManagerFactory()
+        let activeAppMonitor = activeAppMonitorFactory()
+        let statusBarController = statusBarControllerFactory { [weak self] action in
             Task { @MainActor in
                 self?.handleMenuAction(action)
             }
@@ -57,39 +110,13 @@ final class AppContainer {
         self.memoryStore = memoryStore
         self.inputSourceManager = inputSourceManager
         self.activeAppMonitor = activeAppMonitor
-        self.settingsViewModel = settingsViewModel
-        self.settingsWindowController = settingsWindowController
         self.statusBarController = statusBarController
 
         currentSettings = settingsStore.load()
+        availableInputSources = inputSourceManager.availableInputSources()
         currentInputSource = inputSourceManager.currentInputSource()
-        currentActiveApp = frontmostApplicationIdentity()
+        currentActiveApp = frontmostApplicationProvider()
 
-        settingsViewModel.onLaunchAtLoginToggle = { [weak self] enabled in
-            Task { @MainActor in
-                self?.setLaunchAtLogin(enabled)
-            }
-        }
-        settingsViewModel.onDefaultInputSourceChange = { [weak self] inputSourceID in
-            Task { @MainActor in
-                self?.setDefaultInputSource(inputSourceID)
-            }
-        }
-        settingsViewModel.onDebugLoggingToggle = { [weak self] enabled in
-            Task { @MainActor in
-                self?.setDebugLogging(enabled)
-            }
-        }
-        settingsViewModel.onUpsertRule = { [weak self] key, rule in
-            Task { @MainActor in
-                self?.upsertRule(key: key, rule: rule)
-            }
-        }
-        settingsViewModel.onDeleteRule = { [weak self] key in
-            Task { @MainActor in
-                self?.deleteRule(key: key)
-            }
-        }
         inputSourceManager.onChange = { [weak self] inputSource in
             Task { @MainActor in
                 self?.handleInputSourceChange(inputSource)
@@ -108,21 +135,54 @@ final class AppContainer {
         activeAppMonitor.start()
 
         log("辅助功能权限：\(permissionService.accessibilityEnabled() ? "已授权" : "未授权")")
-        log("已发现输入法：\(inputSourceManager.availableInputSources().count)")
+        log("已发现输入法：\(availableInputSources.count)")
 
         refreshUI()
     }
 
-    private var isPaused: Bool {
+    var isPaused: Bool {
         guard let pausedUntil else {
             return false
         }
         return pausedUntil > Date()
     }
 
+    func bindSettingsViewModel(_ viewModel: SettingsViewModel) {
+        settingsViewModel = viewModel
+        configureCallbacks(for: viewModel)
+        refreshUI()
+    }
+
+    func unbindSettingsViewModel(_ viewModel: SettingsViewModel) {
+        guard settingsViewModel === viewModel else {
+            return
+        }
+        settingsViewModel = nil
+    }
+
+    func showSettings() {
+        activateAppAction()
+        showFallbackSettingsWindow()
+    }
+
+    private func showFallbackSettingsWindow() {
+        let viewModel = settingsViewModel ?? fallbackSettingsViewModel ?? SettingsViewModel()
+        fallbackSettingsViewModel = viewModel
+        bindSettingsViewModel(viewModel)
+
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController(viewModel: viewModel)
+        }
+        settingsWindowController?.show()
+    }
+
     private func handleAppActivation(_ app: ApplicationIdentity) {
+        guard !isInputSwitchApp(app) else {
+            return
+        }
+
         currentActiveApp = app
-        updateStatusMenu()
+        refreshUI()
 
         guard !isPaused else {
             log("自动切换已暂停，忽略应用切换：\(app.displayName)")
@@ -151,7 +211,7 @@ final class AppContainer {
         case .pauseTemporarily:
             togglePause()
         case .openSettings:
-            settingsWindowController?.show()
+            showSettings()
         case .quit:
             NSApp.terminate(nil)
         case .none:
@@ -210,7 +270,7 @@ final class AppContainer {
             rebuildCoordinator()
 
             if let inputSourceID {
-                let displayName = inputSourceManager?.availableInputSources().first(where: { $0.id == inputSourceID })?.displayName ?? inputSourceID
+                let displayName = availableInputSources.first(where: { $0.id == inputSourceID })?.displayName ?? inputSourceID
                 log("默认输入法已设置为：\(displayName)")
             } else {
                 log("已清除默认输入法")
@@ -254,12 +314,14 @@ final class AppContainer {
         }
     }
 
-    private func togglePause() {
+    func togglePause() {
         if isPaused {
             pausedUntil = nil
+            invalidatePauseTimer()
             log("已恢复自动切换")
         } else {
             pausedUntil = Date().addingTimeInterval(30 * 60)
+            schedulePauseTimer()
             log("已暂停自动切换 30 分钟")
         }
         updateStatusMenu()
@@ -339,6 +401,9 @@ final class AppContainer {
             inputSourceManager: inputSourceManager,
             settingsStore: settingsStore,
             memoryStore: memoryStore,
+            availableInputSourceIDsProvider: { [weak self] in
+                Set(self?.availableInputSources.map(\.id) ?? [])
+            },
             diagnostics: { [weak self] message in
                 self?.log(message)
             },
@@ -353,16 +418,15 @@ final class AppContainer {
     }
 
     private func refreshUI() {
-        guard let settingsViewModel else {
-            return
+        if let settingsViewModel {
+            settingsViewModel.reload(
+                from: currentSettings,
+                launchAtLoginState: currentLaunchAtLoginState,
+                availableInputSources: availableInputSources,
+                diagnostics: diagnosticsLogger.entries,
+                currentActiveApp: currentActiveApp
+            )
         }
-
-        settingsViewModel.reload(
-            from: currentSettings,
-            launchAtLoginState: currentLaunchAtLoginState,
-            availableInputSources: inputSourceManager?.availableInputSources() ?? [],
-            diagnostics: diagnosticsLogger.entries
-        )
         updateStatusMenu()
     }
 
@@ -400,7 +464,7 @@ final class AppContainer {
         }
     }
 
-    private func frontmostApplicationIdentity() -> ApplicationIdentity? {
+    private static func resolveFrontmostApplicationIdentity() -> ApplicationIdentity? {
         guard let app = NSWorkspace.shared.frontmostApplication else {
             return nil
         }
@@ -429,5 +493,83 @@ final class AppContainer {
         diagnosticsLogger.log(message)
         print(message)
         refreshUI()
+    }
+
+    private func configureCallbacks(for viewModel: SettingsViewModel) {
+        viewModel.onLaunchAtLoginToggle = { [weak self] enabled in
+            Task { @MainActor in
+                self?.setLaunchAtLogin(enabled)
+            }
+        }
+        viewModel.onDefaultInputSourceChange = { [weak self] inputSourceID in
+            Task { @MainActor in
+                self?.setDefaultInputSource(inputSourceID)
+            }
+        }
+        viewModel.onDebugLoggingToggle = { [weak self] enabled in
+            Task { @MainActor in
+                self?.setDebugLogging(enabled)
+            }
+        }
+        viewModel.onUpsertRule = { [weak self] key, rule in
+            Task { @MainActor in
+                self?.upsertRule(key: key, rule: rule)
+            }
+        }
+        viewModel.onDeleteRule = { [weak self] key in
+            Task { @MainActor in
+                self?.deleteRule(key: key)
+            }
+        }
+    }
+
+    private func schedulePauseTimer() {
+        invalidatePauseTimer()
+
+        guard let pausedUntil else {
+            return
+        }
+
+        let interval = pausedUntil.timeIntervalSinceNow
+        guard interval > 0 else {
+            handlePauseTimerFired()
+            return
+        }
+
+        pauseTimer = pauseTimerScheduler(interval) { [weak self] in
+            Task { @MainActor in
+                self?.handlePauseTimerFired()
+            }
+        }
+    }
+
+    private func invalidatePauseTimer() {
+        pauseTimer?.invalidate()
+        pauseTimer = nil
+    }
+
+    private func handlePauseTimerFired() {
+        invalidatePauseTimer()
+
+        guard pausedUntil != nil else {
+            return
+        }
+
+        pausedUntil = nil
+        log("暂停已到期，已恢复自动切换")
+        updateStatusMenu()
+    }
+
+    private func isInputSwitchApp(_ app: ApplicationIdentity) -> Bool {
+        if let bundleID = Bundle.main.bundleIdentifier, app.bundleID == bundleID {
+            return true
+        }
+
+        let bundlePath = Bundle.main.bundleURL.path
+        if app.bundlePath == bundlePath {
+            return true
+        }
+
+        return false
     }
 }

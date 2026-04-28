@@ -6,5 +6,5 @@ protocol InputSourceManaging: AnyObject {
     func start()
     func availableInputSources() -> [InputSourceDescriptor]
     func currentInputSource() -> InputSourceDescriptor?
-    func switchToInputSource(id: String)
+    func switchToInputSource(id: String) -> Bool
 }

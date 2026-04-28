@@ -18,7 +18,8 @@ final class SettingsViewModelTests: XCTestCase {
                 .init(id: "com.apple.keylayout.ABC", displayName: "ABC"),
                 .init(id: "im.wubi", displayName: "简体五笔")
             ],
-            diagnostics: []
+            diagnostics: [],
+            currentActiveApp: nil
         )
         viewModel.onDefaultInputSourceChange = { receivedDefaultInputSourceID = $0 }
 
@@ -42,14 +43,15 @@ final class SettingsViewModelTests: XCTestCase {
             availableInputSources: [
                 .init(id: "com.apple.keylayout.ABC", displayName: "ABC")
             ],
-            diagnostics: []
+            diagnostics: [],
+            currentActiveApp: nil
         )
         viewModel.onUpsertRule = { key, rule in
             receivedRule = (key, rule)
         }
-        viewModel.ruleDraftKey = "bundle:com.googlecode.iterm2"
-        viewModel.ruleDraftKind = .locked
-        viewModel.ruleDraftInputSourceID = "com.apple.keylayout.ABC"
+        viewModel.beginEditing(
+            .init(key: "bundle:com.googlecode.iterm2", rule: .locked(inputSourceID: "com.apple.keylayout.ABC"))
+        )
 
         viewModel.saveRuleDraft()
 
@@ -69,7 +71,8 @@ final class SettingsViewModelTests: XCTestCase {
             ),
             launchAtLoginState: .disabled,
             availableInputSources: [],
-            diagnostics: []
+            diagnostics: [],
+            currentActiveApp: nil
         )
         viewModel.onDeleteRule = { deletedRuleKey = $0 }
 
@@ -92,7 +95,8 @@ final class SettingsViewModelTests: XCTestCase {
                 .init(id: "com.apple.keylayout.ABC", displayName: "ABC"),
                 .init(id: "im.wubi", displayName: "简体五笔")
             ],
-            diagnostics: []
+            diagnostics: [],
+            currentActiveApp: nil
         )
 
         XCTAssertEqual(viewModel.defaultInputSourceName, "ABC")
@@ -111,7 +115,8 @@ final class SettingsViewModelTests: XCTestCase {
             availableInputSources: [
                 .init(id: "com.apple.keylayout.ABC", displayName: "ABC")
             ],
-            diagnostics: []
+            diagnostics: [],
+            currentActiveApp: nil
         )
 
         XCTAssertEqual(viewModel.defaultInputSourceName, "missing.input.source")
@@ -128,7 +133,8 @@ final class SettingsViewModelTests: XCTestCase {
             ),
             launchAtLoginState: .requiresApproval,
             availableInputSources: [],
-            diagnostics: []
+            diagnostics: [],
+            currentActiveApp: nil
         )
 
         XCTAssertTrue(viewModel.launchAtLoginEnabled)
@@ -147,7 +153,8 @@ final class SettingsViewModelTests: XCTestCase {
             ),
             launchAtLoginState: .disabled,
             availableInputSources: [],
-            diagnostics: []
+            diagnostics: [],
+            currentActiveApp: nil
         )
 
         XCTAssertTrue(viewModel.debugLoggingEnabled)
@@ -163,5 +170,120 @@ final class SettingsViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.debugLoggingEnabled)
         XCTAssertEqual(receivedValue, true)
+    }
+
+    func test_begin_rule_draft_for_current_app_uses_current_active_app_identity() {
+        let viewModel = SettingsViewModel()
+
+        viewModel.reload(
+            from: AppSettings(
+                defaultInputSourceID: nil,
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            launchAtLoginState: .disabled,
+            availableInputSources: [],
+            diagnostics: [],
+            currentActiveApp: .init(
+                bundleID: "com.apple.dt.Xcode",
+                bundlePath: nil,
+                executableName: "Xcode",
+                displayName: "Xcode"
+            )
+        )
+
+        viewModel.beginRuleDraftForCurrentApp()
+
+        XCTAssertEqual(viewModel.ruleDraftKey, "bundle:com.apple.dt.Xcode")
+        XCTAssertEqual(viewModel.ruleDraftDisplayName, "Xcode")
+        XCTAssertTrue(viewModel.canSaveRuleDraft)
+    }
+
+    func test_begin_rule_draft_for_current_app_does_nothing_when_no_current_active_app_exists() {
+        let viewModel = SettingsViewModel()
+
+        viewModel.reload(
+            from: AppSettings(
+                defaultInputSourceID: nil,
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            launchAtLoginState: .disabled,
+            availableInputSources: [],
+            diagnostics: [],
+            currentActiveApp: nil
+        )
+
+        viewModel.beginRuleDraftForCurrentApp()
+
+        XCTAssertEqual(viewModel.ruleDraftKey, "")
+        XCTAssertEqual(viewModel.ruleDraftDisplayName, "未选择应用")
+        XCTAssertFalse(viewModel.canSaveRuleDraft)
+    }
+
+    func test_reload_preserves_in_progress_rule_draft() {
+        let viewModel = SettingsViewModel()
+
+        viewModel.reload(
+            from: AppSettings(
+                defaultInputSourceID: nil,
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            launchAtLoginState: .disabled,
+            availableInputSources: [
+                .init(id: "com.apple.keylayout.ABC", displayName: "ABC")
+            ],
+            diagnostics: [],
+            currentActiveApp: .init(
+                bundleID: "com.apple.dt.Xcode",
+                bundlePath: nil,
+                executableName: "Xcode",
+                displayName: "Xcode"
+            )
+        )
+        viewModel.beginRuleDraftForCurrentApp()
+        viewModel.ruleDraftKind = .locked
+        viewModel.ruleDraftInputSourceID = "com.apple.keylayout.ABC"
+
+        viewModel.reload(
+            from: AppSettings(
+                defaultInputSourceID: nil,
+                rules: [:],
+                launchAtLoginEnabled: false
+            ),
+            launchAtLoginState: .disabled,
+            availableInputSources: [
+                .init(id: "com.apple.keylayout.ABC", displayName: "ABC")
+            ],
+            diagnostics: ["输入法变化触发刷新"],
+            currentActiveApp: .init(
+                bundleID: "com.apple.finder",
+                bundlePath: nil,
+                executableName: "Finder",
+                displayName: "访达"
+            )
+        )
+
+        XCTAssertEqual(viewModel.ruleDraftKey, "bundle:com.apple.dt.Xcode")
+        XCTAssertEqual(viewModel.ruleDraftDisplayName, "Xcode")
+        XCTAssertEqual(viewModel.ruleDraftKind, .locked)
+        XCTAssertEqual(viewModel.ruleDraftInputSourceID, "com.apple.keylayout.ABC")
+        XCTAssertTrue(viewModel.canSaveRuleDraft)
+        XCTAssertEqual(viewModel.currentActiveAppDisplayName, "访达")
+    }
+
+    func test_rule_row_display_name_uses_readable_bundle_tail() {
+        let row = SettingsRuleRow(key: "bundle:com.googlecode.iterm2", rule: .ignored)
+
+        XCTAssertEqual(row.displayName, "iTerm2")
+        XCTAssertEqual(row.detailText, "bundle:com.googlecode.iterm2")
+    }
+
+    func test_rule_row_display_name_falls_back_to_key_when_not_bundle() {
+        let row = SettingsRuleRow(key: "executable:Code Helper", rule: .ignored)
+
+        XCTAssertEqual(row.displayName, "Code Helper")
+        XCTAssertEqual(row.detailText, "executable:Code Helper")
     }
 }

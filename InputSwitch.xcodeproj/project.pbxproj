@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0A950A9F4CC1332658C14FF8 /* StatusMenuModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 255E42D63DCFFA1258AFD6DC /* StatusMenuModel.swift */; };
 		0B7AD9E2FBC2377391266EBF /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F340E33E5B0B9D5763BF7F8D /* SettingsStore.swift */; };
+		11954DBA1BB154D23A2EB83F /* SettingsPaneComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8192E6850EBD35B287CAF5ED /* SettingsPaneComponents.swift */; };
 		225DC576009A1D06A8E10A50 /* DiagnosticsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1BE8D2EC4AB96BC167F517 /* DiagnosticsPane.swift */; };
 		2366087D85EA3C96061382DE /* RuleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504365479D7E54157D95F9EB /* RuleEngineTests.swift */; };
 		2B7926A1D54FC8E497F3BF81 /* GeneralPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D8CF1240F30665D76CFA9F8 /* GeneralPane.swift */; };
@@ -25,6 +26,7 @@
 		7F865C888E4AB20D7C9058F1 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EF7667A6605EE3FA3862E1 /* SettingsViewModel.swift */; };
 		81413BEDE53DB0680B7A44D5 /* DiagnosticsLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BD07D90C4594D4EB4DE1FAB /* DiagnosticsLogger.swift */; };
 		81D322C0C76B7EBD08B9B7C1 /* RuleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD6A06D262FB27DBDFDD624 /* RuleEngine.swift */; };
+		848E2ACAEC57AC82CBCA62EA /* SettingsSectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414B202B393A1586A284D5C8 /* SettingsSectionTests.swift */; };
 		8AFE8B63EB750E550733A3CC /* PlaceholderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA40B219AFC9EC22F09BAAD9 /* PlaceholderTests.swift */; };
 		954BCD9929F62E7CA759E66B /* LoopGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A95538D2BD678A858A17C /* LoopGuard.swift */; };
 		9665E6D4C034FC510B51085C /* StatusMenuModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5183AEAC513A3E5C858437BA /* StatusMenuModelTests.swift */; };
@@ -72,6 +74,7 @@
 		255E42D63DCFFA1258AFD6DC /* StatusMenuModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusMenuModel.swift; sourceTree = "<group>"; };
 		2CED56575DF361AA09897362 /* RulesPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RulesPane.swift; sourceTree = "<group>"; };
 		32632C2B45A72F55A0483B97 /* AtomicFileWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtomicFileWriter.swift; sourceTree = "<group>"; };
+		414B202B393A1586A284D5C8 /* SettingsSectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSectionTests.swift; sourceTree = "<group>"; };
 		4AE651677555A94044007CAE /* StatusPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusPane.swift; sourceTree = "<group>"; };
 		4BD07D90C4594D4EB4DE1FAB /* DiagnosticsLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsLogger.swift; sourceTree = "<group>"; };
 		4D230417FFA566720CF36A98 /* InputSwitchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSwitchApp.swift; sourceTree = "<group>"; };
@@ -86,6 +89,7 @@
 		6B5A95538D2BD678A858A17C /* LoopGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopGuard.swift; sourceTree = "<group>"; };
 		6D1583FD1673348D755A4E50 /* WorkspaceActiveAppMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceActiveAppMonitor.swift; sourceTree = "<group>"; };
 		7DA1A7B9A41C55573FEB9FDA /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
+		8192E6850EBD35B287CAF5ED /* SettingsPaneComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPaneComponents.swift; sourceTree = "<group>"; };
 		852DF41F55C25770959842BB /* ApplicationIdentityResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationIdentityResolverTests.swift; sourceTree = "<group>"; };
 		8CDF824535AD08765AF1D382 /* MemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryStore.swift; sourceTree = "<group>"; };
 		93C7AA09551CC463BCDD5EC0 /* SwitchCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchCoordinator.swift; sourceTree = "<group>"; };
@@ -148,6 +152,7 @@
 				9FB63CCF1E7C2D56257AD330 /* LaunchAtLoginServiceTests.swift */,
 				EA40B219AFC9EC22F09BAAD9 /* PlaceholderTests.swift */,
 				504365479D7E54157D95F9EB /* RuleEngineTests.swift */,
+				414B202B393A1586A284D5C8 /* SettingsSectionTests.swift */,
 				592F7A3648E35558354ED729 /* SettingsViewModelTests.swift */,
 				5183AEAC513A3E5C858437BA /* StatusMenuModelTests.swift */,
 				C2C761C0BAB8B54F4CE6F474 /* SwitchCoordinatorTests.swift */,
@@ -176,6 +181,7 @@
 				4D8CF1240F30665D76CFA9F8 /* GeneralPane.swift */,
 				FE5A9DE33D58253521873E57 /* InputSourcesPane.swift */,
 				2CED56575DF361AA09897362 /* RulesPane.swift */,
+				8192E6850EBD35B287CAF5ED /* SettingsPaneComponents.swift */,
 				5C57EEE46D325EE9384B9405 /* SettingsView.swift */,
 				E1EF7667A6605EE3FA3862E1 /* SettingsViewModel.swift */,
 				FD0CB18CD50251A23E0E0238 /* SettingsWindowController.swift */,
@@ -340,6 +346,7 @@
 				A3B8ED829786CC16577BFB38 /* RuleDecision.swift in Sources */,
 				81D322C0C76B7EBD08B9B7C1 /* RuleEngine.swift in Sources */,
 				D600710339A479B74864EF7B /* RulesPane.swift in Sources */,
+				11954DBA1BB154D23A2EB83F /* SettingsPaneComponents.swift in Sources */,
 				0B7AD9E2FBC2377391266EBF /* SettingsStore.swift in Sources */,
 				72DCDBAB914B5184C685953F /* SettingsView.swift in Sources */,
 				7F865C888E4AB20D7C9058F1 /* SettingsViewModel.swift in Sources */,
@@ -363,6 +370,7 @@
 				EA6783862CAA6ADCE8DAA1DE /* LaunchAtLoginServiceTests.swift in Sources */,
 				8AFE8B63EB750E550733A3CC /* PlaceholderTests.swift in Sources */,
 				2366087D85EA3C96061382DE /* RuleEngineTests.swift in Sources */,
+				848E2ACAEC57AC82CBCA62EA /* SettingsSectionTests.swift in Sources */,
 				FD955DDAC80BE86E782D409B /* SettingsViewModelTests.swift in Sources */,
 				9665E6D4C034FC510B51085C /* StatusMenuModelTests.swift in Sources */,
 				3A5996519A25B569C599918B /* SwitchCoordinatorTests.swift in Sources */,

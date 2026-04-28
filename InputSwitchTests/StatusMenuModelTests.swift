@@ -46,7 +46,7 @@ final class StatusMenuModelTests: XCTestCase {
         XCTAssertEqual(model.icon, .templateGlyph("搜", style: .filledCutout))
     }
 
-    func test_menu_contains_only_the_confirmed_minimal_actions() {
+    func test_menu_contains_grouped_actions_with_short_labels() {
         let model = StatusMenuModel.make(
             activeAppName: "iTerm2",
             currentInputSourceName: "ABC",
@@ -57,15 +57,38 @@ final class StatusMenuModelTests: XCTestCase {
         XCTAssertEqual(
             model.items.map(\.title),
             [
-                "当前应用：iTerm2",
-                "当前输入法：ABC",
-                "将当前应用标记为不管理",
+                "当前应用    iTerm2",
+                "当前输入法  ABC",
+                "",
+                "忽略当前应用",
                 "清除此应用记忆",
-                "暂停自动切换（30 分钟）",
+                "暂停 30 分钟",
+                "",
                 "打开设置…",
-                "退出"
+                "退出 InputSwitch"
             ]
         )
+        XCTAssertEqual(model.items.filter(\.isSeparator).count, 2)
+        XCTAssertEqual(model.items.compactMap(\.systemImageName), [
+            "macwindow",
+            "keyboard",
+            "nosign",
+            "trash",
+            "pause.circle",
+            "gearshape",
+            "power"
+        ])
         XCTAssertEqual(model.icon, .templateGlyph("A", style: .outlined))
+    }
+
+    func test_menu_uses_resume_action_when_paused() {
+        let model = StatusMenuModel.make(
+            activeAppName: "iTerm2",
+            currentInputSourceName: "ABC",
+            currentInputSourceID: nil,
+            isPaused: true
+        )
+
+        XCTAssertTrue(model.items.contains(.init(title: "恢复自动切换", action: .pauseTemporarily, systemImageName: "play.circle")))
     }
 }

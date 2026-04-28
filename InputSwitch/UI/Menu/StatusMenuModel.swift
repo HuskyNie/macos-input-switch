@@ -3,6 +3,24 @@ import Foundation
 struct StatusMenuItem: Equatable {
     let title: String
     let action: MenuAction
+    let systemImageName: String?
+    let isSeparator: Bool
+
+    init(title: String, action: MenuAction, systemImageName: String? = nil) {
+        self.title = title
+        self.action = action
+        self.systemImageName = systemImageName
+        self.isSeparator = false
+    }
+
+    private init() {
+        title = ""
+        action = .none
+        systemImageName = nil
+        isSeparator = true
+    }
+
+    static var separator: StatusMenuItem { StatusMenuItem() }
 }
 
 enum StatusMenuIcon: Equatable {
@@ -33,7 +51,8 @@ struct StatusMenuModel: Equatable {
         currentInputSourceID: String? = nil,
         isPaused: Bool
     ) -> StatusMenuModel {
-        let pauseTitle = isPaused ? "恢复自动切换" : "暂停自动切换（30 分钟）"
+        let pauseTitle = isPaused ? "恢复自动切换" : "暂停 30 分钟"
+        let pauseIcon = isPaused ? "play.circle" : "pause.circle"
 
         return StatusMenuModel(
             icon: .templateGlyph(
@@ -41,13 +60,15 @@ struct StatusMenuModel: Equatable {
                 style: menuBarGlyphStyle(for: currentInputSourceName, inputSourceID: currentInputSourceID)
             ),
             items: [
-                .init(title: "当前应用：\(activeAppName)", action: .none),
-                .init(title: "当前输入法：\(currentInputSourceName)", action: .none),
-                .init(title: "将当前应用标记为不管理", action: .ignoreCurrentApp),
-                .init(title: "清除此应用记忆", action: .clearCurrentMemory),
-                .init(title: pauseTitle, action: .pauseTemporarily),
-                .init(title: "打开设置…", action: .openSettings),
-                .init(title: "退出", action: .quit)
+                .init(title: "当前应用    \(activeAppName)", action: .none, systemImageName: "macwindow"),
+                .init(title: "当前输入法  \(currentInputSourceName)", action: .none, systemImageName: "keyboard"),
+                .separator,
+                .init(title: "忽略当前应用", action: .ignoreCurrentApp, systemImageName: "nosign"),
+                .init(title: "清除此应用记忆", action: .clearCurrentMemory, systemImageName: "trash"),
+                .init(title: pauseTitle, action: .pauseTemporarily, systemImageName: pauseIcon),
+                .separator,
+                .init(title: "打开设置…", action: .openSettings, systemImageName: "gearshape"),
+                .init(title: "退出 InputSwitch", action: .quit, systemImageName: "power")
             ]
         )
     }

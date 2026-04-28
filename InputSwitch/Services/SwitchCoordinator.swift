@@ -15,6 +15,7 @@ extension MemoryStore: MemoryStoring {}
 final class SwitchCoordinator {
     private let ruleEngine: RuleEngine
     private let inputSourceManager: InputSourceManaging
+    private let availableInputSourceIDsProvider: () -> Set<String>
     private let memoryStore: MemoryStoring
     private let loopGuard: LoopGuard
     private let diagnostics: (String) -> Void
@@ -29,12 +30,14 @@ final class SwitchCoordinator {
         inputSourceManager: InputSourceManaging,
         settingsStore: SettingsProviding,
         memoryStore: MemoryStoring,
+        availableInputSourceIDsProvider: @escaping () -> Set<String>,
         diagnostics: @escaping (String) -> Void = { _ in },
         debugDiagnostics: @escaping (String) -> Void = { _ in },
         loopGuard: LoopGuard = LoopGuard()
     ) {
         self.ruleEngine = ruleEngine
         self.inputSourceManager = inputSourceManager
+        self.availableInputSourceIDsProvider = availableInputSourceIDsProvider
         self.memoryStore = memoryStore
         self.diagnostics = diagnostics
         self.debugDiagnostics = debugDiagnostics
@@ -69,9 +72,9 @@ final class SwitchCoordinator {
         }
         logSwitchDecisionDebug(reason: reason, app: app, inputSourceID: inputSourceID)
 
-        let availableInputSourceIDs = Set(inputSourceManager.availableInputSources().map(\.id))
+        let availableInputSourceIDs = availableInputSourceIDsProvider()
         if availableInputSourceIDs.contains(inputSourceID) {
-            switchInputSource(to: inputSourceID)
+            switchInputSource(to: inputSourceID, appName: app.displayName)
             return
         }
 
@@ -93,7 +96,7 @@ final class SwitchCoordinator {
             return
         }
 
-        switchInputSource(to: defaultInputSourceID)
+        switchInputSource(to: defaultInputSourceID, appName: app.displayName)
     }
 
     func handleInputSourceDidChange(to inputSource: InputSourceDescriptor) throws {
@@ -124,10 +127,13 @@ final class SwitchCoordinator {
         debugDiagnostics("[DEBUG] 用户主动切换后写入记忆：\(activeApp.displayName) -> \(inputSource.id)")
     }
 
-    private func switchInputSource(to inputSourceID: String) {
+    private func switchInputSource(to inputSourceID: String, appName: String) {
         debugDiagnostics("[DEBUG] 实际执行切换：\(inputSourceID)")
+        guard inputSourceManager.switchToInputSource(id: inputSourceID) else {
+            diagnostics("切换输入法失败，应用：\(appName)，输入法 ID：\(inputSourceID)")
+            return
+        }
         loopGuard.markProgrammaticSwitch(to: inputSourceID)
-        inputSourceManager.switchToInputSource(id: inputSourceID)
     }
 
     private func logKeepCurrentDebug(reason: RuleReason, app: ApplicationIdentity, currentInputSource: InputSourceDescriptor?) {

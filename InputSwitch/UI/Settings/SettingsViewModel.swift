@@ -5,6 +5,23 @@ struct SettingsRuleRow: Identifiable, Equatable {
     let rule: AppRule
 
     var id: String { key }
+    var detailText: String { key }
+    var displayName: String {
+        let value: String
+        if let separatorIndex = key.firstIndex(of: ":") {
+            value = String(key[key.index(after: separatorIndex)...])
+        } else {
+            value = key
+        }
+
+        let lastComponent = value.split(separator: ".").last.map(String.init) ?? value
+        switch lastComponent.lowercased() {
+        case "iterm2":
+            return "iTerm2"
+        default:
+            return lastComponent.isEmpty ? key : lastComponent
+        }
+    }
 }
 
 enum SettingsRuleDraftKind: String, CaseIterable, Identifiable {
@@ -24,9 +41,13 @@ final class SettingsViewModel: ObservableObject {
     @Published var availableInputSources: [InputSourceDescriptor] = []
     @Published var diagnostics: [String] = []
     @Published var ruleDraftKey = ""
+    @Published var ruleDraftDisplayName = "未选择应用"
     @Published var ruleDraftKind: SettingsRuleDraftKind = .ignored
     @Published var ruleDraftInputSourceID: String?
     @Published var debugLoggingEnabled = false
+    @Published var currentActiveAppDisplayName = "未检测到"
+
+    private var currentActiveAppKey: String?
 
     var onLaunchAtLoginToggle: ((Bool) -> Void)?
     var onDefaultInputSourceChange: ((String?) -> Void)?
@@ -34,6 +55,7 @@ final class SettingsViewModel: ObservableObject {
     var onUpsertRule: ((String, AppRule) -> Void)?
     var onDeleteRule: ((String) -> Void)?
     var launchAtLoginStatusMessage: String { launchAtLoginState.statusMessage }
+    var canCreateRuleForCurrentApp: Bool { currentActiveAppKey != nil }
     var canSaveRuleDraft: Bool {
         !ruleDraftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         (ruleDraftKind == .ignored || ruleDraftInputSourceID != nil)
@@ -43,7 +65,8 @@ final class SettingsViewModel: ObservableObject {
         from settings: AppSettings,
         launchAtLoginState: LaunchAtLoginState,
         availableInputSources: [InputSourceDescriptor],
-        diagnostics: [String]
+        diagnostics: [String],
+        currentActiveApp: ApplicationIdentity?
     ) {
         self.availableInputSources = availableInputSources
         defaultInputSourceID = settings.defaultInputSourceID
@@ -55,6 +78,8 @@ final class SettingsViewModel: ObservableObject {
             .sorted { $0.key < $1.key }
             .map { SettingsRuleRow(key: $0.key, rule: $0.value) }
         self.diagnostics = diagnostics
+        currentActiveAppKey = currentActiveApp?.matchKey
+        currentActiveAppDisplayName = currentActiveApp?.displayName ?? "未检测到"
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -71,6 +96,7 @@ final class SettingsViewModel: ObservableObject {
 
     func beginEditing(_ row: SettingsRuleRow) {
         ruleDraftKey = row.key
+        ruleDraftDisplayName = row.key
         switch row.rule {
         case .ignored:
             ruleDraftKind = .ignored
@@ -84,8 +110,18 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    func beginRuleDraftForCurrentApp() {
+        guard let currentActiveAppKey else {
+            return
+        }
+
+        ruleDraftKey = currentActiveAppKey
+        ruleDraftDisplayName = currentActiveAppDisplayName
+    }
+
     func clearRuleDraft() {
         ruleDraftKey = ""
+        ruleDraftDisplayName = "未选择应用"
         ruleDraftKind = .ignored
         ruleDraftInputSourceID = nil
     }
